@@ -1,6 +1,6 @@
 import express from "express";
 import { verifySignature } from "./middlewares/verifySignature.js";
-import { executeDeployCommands } from "./services/deploy.js";
+import { deployProject } from "./services/deploy.js";
 import fs from "node:fs";
 
 const app = express();
@@ -17,10 +17,12 @@ app.get("/", (req, res) => {
 app.post("/webhook/github", verifySignature, async (req, res) => {
   res.status(200).json({ received: true });
   console.log("webhook received");
+
   const webhookBody = req.body || {};
   const repo = webhookBody?.repository?.full_name;
   const branch = webhookBody?.ref?.replace("refs/heads/", "");
   const deploymentId = webhookBody?.after;
+  const commits = webhookBody?.commits || []; // <-- extract here, from the payload
 
   if (!deploymentId || /^0+$/.test(deploymentId)) {
     console.log("Branch deleted or invalid SHA — skipping.");
@@ -44,10 +46,7 @@ app.post("/webhook/github", verifySignature, async (req, res) => {
   });
 
   try {
-    await executeDeployCommands(
-      matchedProject.deploy.commands,
-      matchedProject.cwd,
-    );
+    await deployProject(matchedProject, commits); // <-- pass the real commits, not matchedProject.commits
     const record = deploymentQueue.get(deploymentId);
     record.status = "success";
     record.finishedAt = new Date().toISOString();
@@ -57,8 +56,6 @@ app.post("/webhook/github", verifySignature, async (req, res) => {
     record.error = err.message;
     record.finishedAt = new Date().toISOString();
   }
-
-  // Next: actually run the deploy — see Step 2 below
 });
 
 app.listen(4000, () => {

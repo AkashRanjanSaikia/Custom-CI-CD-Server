@@ -4,12 +4,12 @@
       "name": "My_React_App",
       "repository": "AkashRanjanSaikia/My_React_App",
       "branch": "main",
-      "cwd": "E:\\DEV\\My_React_App",
-      "deploy": {
-        "commands": [
-          "git pull",
-          "npm ci",
-          "npm run build",
+      "cwd": "E:/DEV/My_React_App",
+      "commands": {
+        "pull": "git pull",
+        "install": "npm ci",
+        "build": "npm run build",
+        "postBuild": [
           "aws s3 sync dist s3://my-new-bucket-7856 --delete"
         ]
       }
