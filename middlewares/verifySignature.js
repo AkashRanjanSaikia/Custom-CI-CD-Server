@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
+import "dotenv/config";
 
 export const verifySignature = (req, res, next) => {
   const signature = req.headers["x-hub-signature-256"];
-  const secret = "my_secret";
-
+  const secret = process.env.GITHUB_WEBHOOK_SECRET;     
+  
   if (!secret) {
     console.error("GITHUB_WEBHOOK_SECRET is not set in environment");
     return res.status(500).json({ success: false, message: "Server misconfigured" });

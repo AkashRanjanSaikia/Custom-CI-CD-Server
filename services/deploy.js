@@ -1,4 +1,5 @@
 import { exec } from "node:child_process";
+import { runSshCommand, runSshCommands } from "./ssh.js";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -6,7 +7,7 @@ function getShell() {
   return IS_PROD ? "/bin/bash" : "C:\\Program Files\\Git\\bin\\bash.exe";
 }
 
-function runCommand(command, cwd) {
+function runLocalCommand(command, cwd) {
   console.log(`[RUN] ${command}  (cwd: ${cwd})`);
 
   return new Promise((resolve, reject) => {
@@ -27,9 +28,19 @@ function runCommand(command, cwd) {
   });
 }
 
-async function runCommands(commands, cwd) {
+function runCommand(command, project, cwd) {
+  if (project.type === "remote") {
+    return runSshCommand(command, project.ssh, cwd);
+  }
+  return runLocalCommand(command, cwd);
+}
+
+async function runCommands(commands, project, cwd) {
+  if (project.type === "remote") {
+    return runSshCommands(commands, project.ssh, cwd);
+  }
   for (const command of commands) {
-    await runCommand(command, cwd);
+    await runLocalCommand(command, cwd);
   }
 }
 
@@ -63,19 +74,22 @@ export async function deployProject(project, commits) {
   const changedFiles = getChangedFiles(commits);
 
   console.log("[CHANGED FILES]", changedFiles);
+  console.log("[PROJECT TYPE]", project.type);
 
-  await runCommand(commands.pull, cwd);
+  await runCommand(commands.pull, project, cwd);
 
   if (dependenciesChanged(changedFiles)) {
     console.log("[INSTALL CHECK] package.json/lock changed — running install.");
-    await runCommand(commands.install, cwd);
+    await runCommand(commands.install, project, cwd);
   } else {
     console.log("[INSTALL CHECK] No dependency changes — skipping install.");
   }
 
-  await runCommand(`CI=false ${commands.build}`, cwd);
+  if (commands.build) {
+    await runCommand(`CI=false ${commands.build}`, project, cwd);
+  }
 
   if (commands.postBuild?.length > 0) {
-    await runCommands(commands.postBuild, cwd);
+    await runCommands(commands.postBuild, project, cwd);
   }
 }

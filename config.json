@@ -4,14 +4,30 @@
       "name": "My_React_App",
       "repository": "AkashRanjanSaikia/My_React_App",
       "branch": "main",
+      "type": "local",
       "cwd": "E:/DEV/My_React_App",
       "commands": {
         "pull": "git pull",
         "install": "npm ci",
         "build": "npm run build",
-        "postBuild": [
-          "aws s3 sync dist s3://my-new-bucket-7856 --delete"
-        ]
+        "postBuild": ["aws s3 sync dist s3://my-new-bucket-7856 --delete"]
+      }
+    },
+    {
+      "name": "Simple_Backend_Server",
+      "repository": "AkashRanjanSaikia/Simple_Backend_Server",
+      "branch": "main",
+      "type": "remote",
+      "cwd": "/home/ubuntu/Simple_Backend_Server",
+      "ssh": {
+        "host": "13.200.235.11",
+        "username": "ubuntu",
+        "privateKeyPath": "C:\\Users\\Akash\\.ssh\\my_key_pair.pem"
+      },
+      "commands": {
+        "pull": "git pull",
+        "install": "npm ci",
+        "postBuild": ["pm2 restart backend"]  
       }
     }
   ]
