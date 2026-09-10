@@ -1,4 +1,4 @@
-# CI/CD Server
+# Custom CI/CD Server
 
 A self-hosted CI/CD server that listens for GitHub push webhooks and automatically deploys the affected project — locally or over SSH to a remote server — with health checks and automatic rollback if a deployment goes bad.
 
