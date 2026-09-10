@@ -11,6 +11,14 @@
         "install": "npm ci",
         "build": "npm run build",
         "postBuild": ["aws s3 sync dist s3://my-new-bucket-7856 --delete"]
+      },
+      "healthCheck": {
+        "url": "https://my-react-app.example.com",
+        "expectedStatus": 200,
+        "expectedText": "<!DOCTYPE html>",
+        "initialDelayMs": 5000,
+        "intervalMs": 3000,
+        "maxRetries": 5
       }
     },
     {
@@ -20,14 +28,22 @@
       "type": "remote",
       "cwd": "/home/ubuntu/Simple_Backend_Server",
       "ssh": {
-        "host": "13.200.235.11",
+        "host": "3.111.52.205",
         "username": "ubuntu",
         "privateKeyPath": "C:\\Users\\Akash\\.ssh\\my_key_pair.pem"
       },
       "commands": {
-        "pull": "git pull",
+        "pull": "git checkout main && git pull origin main",
         "install": "npm ci",
-        "postBuild": ["pm2 restart backend"]  
+        "postBuild": ["/home/ubuntu/.nvm/versions/node/v24.20.0/bin/pm2 restart backend"]
+      },
+      "healthCheck": {
+        "url": "http://3.111.52.205:3000/health",
+        "expectedStatus": 200,
+        "expectedText": "ok",
+        "initialDelayMs": 3000,
+        "intervalMs": 2000,
+        "maxRetries": 3
       }
     }
   ]

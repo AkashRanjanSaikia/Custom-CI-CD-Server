@@ -13,20 +13,18 @@ export const verifySignature = (req, res, next) => {
   if (!signature) {
     return res.status(401).json({ success: false, message: "Missing signature header" });
   }
-
+  
   if (!req.body) {
     return res.status(400).json({ success: false, message: "Raw body not available for verification" });
   }
 
   const expectedSignature =
-    "sha256=" +
-    crypto.createHmac("sha256", secret).update(JSON.stringify(req.body)).digest("hex");
+    "sha256=" + crypto.createHmac("sha256", secret).update(JSON.stringify(req.body)).digest("hex");
 
   const signatureBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expectedSignature);
 
   
-
   // Must check length before timingSafeEqual — it throws on mismatched lengths
   const isValid =
     signatureBuffer.length === expectedBuffer.length &&
@@ -35,6 +33,6 @@ export const verifySignature = (req, res, next) => {
   if (!isValid) {
     return res.status(401).json({ success: false, message: "Invalid signature" });
   }
-
+  
   next();
 };

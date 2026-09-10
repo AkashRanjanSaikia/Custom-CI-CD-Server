@@ -1,52 +1,8 @@
-import { exec } from "node:child_process";
-import { runSshCommand, runSshCommands } from "./ssh.js";
+import { runCommand, runCommands } from "./utils.js";
+import { getLastWorkingCommit, setLastWorkingCommit } from "./deploymentState.js";
+import { runHealthCheck } from "./healthCheck.js";
+import { getCurrentCommit, rollbackToLastWorking } from "./rollback.js";
 
-const IS_PROD = process.env.NODE_ENV === "production";
-
-function getShell() {
-  return IS_PROD ? "/bin/bash" : "C:\\Program Files\\Git\\bin\\bash.exe";
-}
-
-function runLocalCommand(command, cwd) {
-  console.log(`[RUN] ${command}  (cwd: ${cwd})`);
-
-  return new Promise((resolve, reject) => {
-    exec(
-      command,
-      { cwd, shell: getShell(), maxBuffer: 1024 * 1024 * 10 },
-      (err, stdout, stderr) => {
-        if (stdout) console.log("[stdout]", stdout);
-        if (stderr) console.log("[stderr]", stderr);
-
-        if (err) {
-          console.log("[EXIT CODE]", err.code);
-          return reject(new Error(stderr || err.message));
-        }
-        resolve(stdout);
-      }
-    );
-  });
-}
-
-function runCommand(command, project, cwd) {
-  if (project.type === "remote") {
-    return runSshCommand(command, project.ssh, cwd);
-  }
-  return runLocalCommand(command, cwd);
-}
-
-async function runCommands(commands, project, cwd) {
-  if (project.type === "remote") {
-    return runSshCommands(commands, project.ssh, cwd);
-  }
-  for (const command of commands) {
-    await runLocalCommand(command, cwd);
-  }
-}
-
-/**
- * Flattens added/modified/removed files across all commits in a push.
- */
 export function getChangedFiles(commits) {
   const fileSet = new Set();
   for (const commit of commits) {
@@ -57,26 +13,25 @@ export function getChangedFiles(commits) {
   return Array.from(fileSet);
 }
 
-/**
- * Checks if any dependency-related file changed in this push.
- */
 function dependenciesChanged(changedFiles) {
   const dependencyFiles = ["package.json", "package-lock.json"];
   return changedFiles.some((file) => dependencyFiles.includes(file));
 }
 
-/**
- * Full deploy flow, driven by what GitHub says changed —
- * no local hashing/state needed.
- */
 export async function deployProject(project, commits) {
-  const { cwd, commands } = project;
+  const { cwd, commands, name } = project;
   const changedFiles = getChangedFiles(commits);
 
   console.log("[CHANGED FILES]", changedFiles);
   console.log("[PROJECT TYPE]", project.type);
 
+  const previousWorkingCommit = getLastWorkingCommit(name);
+  console.log(`[PREVIOUS WORKING COMMIT] ${previousWorkingCommit ? previousWorkingCommit.slice(0, 7) : "none"}`);
+
   await runCommand(commands.pull, project, cwd);
+
+  const currentCommitAfterPull = await getCurrentCommit(project);
+  console.log(`[CURRENT COMMIT] ${currentCommitAfterPull ? currentCommitAfterPull.slice(0, 7) : "unknown"}`);
 
   if (dependenciesChanged(changedFiles)) {
     console.log("[INSTALL CHECK] package.json/lock changed — running install.");
@@ -91,5 +46,41 @@ export async function deployProject(project, commits) {
 
   if (commands.postBuild?.length > 0) {
     await runCommands(commands.postBuild, project, cwd);
+  }
+
+  const healthCheckConfigured = !!project.healthCheck;
+  const healthResult = await runHealthCheck(project);
+
+  if (!healthResult.passed) {
+  console.warn(`[HEALTH CHECK] Deployment for ${name} failed. Initiating rollback...`);
+
+  let rollbackResult;
+  try {
+    rollbackResult = await rollbackToLastWorking(project);
+  } catch (rollbackErr) {
+    console.error(`[ROLLBACK FAILED] ${rollbackErr.message}`);
+    throw new Error(
+      `Health check failed after ${healthResult.attempts} attempts. Rollback also failed: ${rollbackErr.message}`
+    );
+  }
+
+  console.log(`[ROLLBACK SUCCESS] ${name} rolled back to ${rollbackResult.rolledBackTo.slice(0, 7)}`);
+  throw new Error(
+    `Health check failed after ${healthResult.attempts} attempts. Rolled back to last working commit ${rollbackResult.rolledBackTo.slice(0, 7)}.`
+  );
+}
+
+  const shouldSaveLastWorking = currentCommitAfterPull &&
+    (!healthCheckConfigured || healthResult.skipped !== true);
+
+  if (shouldSaveLastWorking) {
+    setLastWorkingCommit(name, currentCommitAfterPull);
+    console.log(`[STATE] Saved ${currentCommitAfterPull.slice(0, 7)} as last working commit for ${name}`);
+  } else if (currentCommitAfterPull && healthCheckConfigured && healthResult.skipped) {
+    console.warn(
+      `[STATE] healthCheck is configured but no url/command was set — ` +
+      `not saving ${currentCommitAfterPull.slice(0, 7)} as last working commit for ${name} ` +
+      `to avoid trusting an unverified deployment.`
+    );
   }
 }

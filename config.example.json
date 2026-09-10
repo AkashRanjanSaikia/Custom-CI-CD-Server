@@ -1,0 +1,41 @@
+{
+  "projects": [
+    {
+      "name": "my-react-app",
+      "repository": "your-username/my-react-app",
+      "branch": "main",
+      "type": "local",
+      "cwd": "E:/DEV/My_React_App",
+      "commands": {
+        "pull": "git pull",
+        "install": "npm ci",
+        "build": "npm run build",
+        "postBuild": ["aws s3 sync dist s3://your-bucket-name --delete"]
+      }
+    },
+    {
+      "name": "my-node-api",
+      "repository": "your-username/my-node-api",
+      "branch": "main",
+      "type": "remote",
+      "cwd": "/home/ubuntu/my-node-api",
+      "ssh": {
+        "host": "1.2.3.4",
+        "username": "ubuntu",
+        "privateKeyPath": "E:/DEV/keys/ec2-key.pem",
+        "port": 22
+      },
+      "commands": {
+        "pull": "git pull",
+        "install": "npm ci",
+        "postBuild": ["pm2 restart my-node-api"]
+      },
+      "healthCheck": {
+        "url": "http://localhost:3000/health",
+        "pm2Name": "my-node-api",
+        "retries": 5,
+        "delayMs": 2000
+      }
+    }
+  ]
+}
