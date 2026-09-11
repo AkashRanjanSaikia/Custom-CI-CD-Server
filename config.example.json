@@ -6,6 +6,7 @@
       "branch": "main",
       "type": "local",
       "cwd": "E:/DEV/My_React_App",
+      "notifyEmail": "you@example.com",
       "commands": {
         "pull": "git pull",
         "install": "npm ci",
@@ -19,6 +20,7 @@
       "branch": "main",
       "type": "remote",
       "cwd": "/home/ubuntu/my-node-api",
+      "notifyEmail": "you@example.com",
       "ssh": {
         "host": "1.2.3.4",
         "username": "ubuntu",

@@ -2,6 +2,7 @@ import express from "express";
 import { verifySignature } from "./middlewares/verifySignature.js";
 import { deployProject } from "./services/deploy.js";
 import { setCommitStatus } from "./services/status.js";
+import { sendFailureEmail } from "./services/email.js";
 import fs from "node:fs";
 
 const app = express();
@@ -36,7 +37,7 @@ app.post("/webhook/github", verifySignature, async (req, res) => {
   const targetUrl = `${process.env.SERVER_URL}/runs/${deploymentId}`;
 
   deploymentQueue.set(deploymentId, {
-    project: matchedProject.name,
+    project: matchedProject,
     deploymentId,
     status: "pending",
     startedAt: new Date().toISOString(),
@@ -80,6 +81,15 @@ app.post("/webhook/github", verifySignature, async (req, res) => {
       description: "Deployment failed",
       targetUrl,
     });
+
+    // 4. Send failure email
+    await sendFailureEmail({
+      project: matchedProject,
+      deploymentId,
+      error: err.message,
+      detailsUrl: targetUrl,
+    });
+    
   }
 });
 

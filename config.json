@@ -2,6 +2,7 @@
   "projects": [
     {
       "name": "My_React_App",
+      "notifyEmail": "arsaikia26@gmail.com",
       "repository": "AkashRanjanSaikia/My_React_App",
       "branch": "main",
       "type": "local",
@@ -23,6 +24,7 @@
     },
     {
       "name": "Simple_Backend_Server",
+      "notifyEmail": "arsaikia26@gmail.com",
       "repository": "AkashRanjanSaikia/Simple_Backend_Server",
       "branch": "main",
       "type": "remote",
